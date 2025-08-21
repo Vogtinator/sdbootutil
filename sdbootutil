@@ -1000,6 +1000,7 @@ install_kernel()
 	local kernel_version="$2"
 	local dstinitrd=()
 	local src="${subvol#"${subvol_prefix}"}/lib/modules/$kernel_version/$image"
+	local srchmac="${subvol#"${subvol_prefix}"}/lib/modules/$kernel_version/.${image}.hmac"
 	local initrddir="${subvol#"${subvol_prefix}"}/usr/lib/initrd"
 	[ -n "$kernel_version" ] || err "Missing kernel version"
 	[ -e "$src" ] || err "Can't find $src"
@@ -1010,6 +1011,7 @@ install_kernel()
 	calc_chksum "$src"
 	settle_entry_token "${snapshot}"
 	local dst="/$entry_token/$kernel_version/linux-$chksum"
+	local dsthmac="/$entry_token/$kernel_version/.linux-${chksum}.hmac"
 
 	local initrd="${src%/*}/initrd"
 
@@ -1100,6 +1102,15 @@ install_kernel()
 	else
 		info "Reusing $boot_root$dst"
 	fi
+
+	if ! [ -e "$srchmac" ]; then
+		info "No .hmac for $src"
+	elif [ ! -e "$boot_root$dsthmac" ]; then
+		install_with_rollback "$srchmac" "$boot_root$dsthmac" || failed=kernel-hmac
+	else
+		info "Reusing $boot_root$dsthmac"
+	fi
+
 	if [ -z "$failed" ] && [ -e "$tmpdir/initrd-0" ]; then
 		i=0
 		while [ -e "$tmpdir/initrd-$i" ]; do
